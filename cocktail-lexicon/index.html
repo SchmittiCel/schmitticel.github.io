@@ -459,9 +459,43 @@ function rSettings(panel){
   fI.addEventListener("change",ev=>{const file=ev.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=e=>{try{const d=JSON.parse(e.target.result);if(d.cocktails)S.cocktails=d.cocktails;if(d.ingredients)S.ingredients=d.ingredients;if(d.basics)S.basics=d.basics;if(d.ausstattung)S.ausstattung=d.ausstattung;if(d.kategorien)S.kategorien=d.kategorien;LS.write(K.C,S.cocktails);LS.write(K.I,S.ingredients);LS.write(K.B,S.basics);LS.write(K.A,S.ausstattung);LS.write(K.KT,S.kategorien);rerender();}catch{alert("Ungültige JSON-Datei");}};reader.readAsText(file);});
   mk(dr,"button",{cls:"btn ghost",text:"📤 Import JSON"}).addEventListener("click",()=>fI.click());document.body.appendChild(fI);
   mk(dm,"div",{text:"Daten werden im Browser (localStorage) gespeichert. Regelmäßig exportieren für Backups.",style:"font-size:11px;color:var(--text3);margin-top:8px"});
+  mk(dr,"button",{cls:"btn ghost",text:"🔄 Neu vom Server laden"}).addEventListener("click",async()=>{if(!confirm("Alle lokalen Daten mit Server-Daten überschreiben?"))return;LS.del("cl_initial_loaded");await initApp();});
 }
-S.cocktails=LS.read(K.C)||[];S.ingredients=LS.read(K.I)||[];S.basics=LS.read(K.B)||[];S.ausstattung=LS.read(K.A)||{};S.kategorien=LS.read(K.KT)||[];const sS=LS.read(K.S);if(sS)S.settings={...DEF,...sS};
-rerender();
+async function initApp(){
+  const sS=LS.read(K.S);if(sS)S.settings={...DEF,...sS};
+  const alreadyLoaded=LS.read("cl_initial_loaded");
+  if(!alreadyLoaded){
+    document.getElementById("app").innerHTML='<div style="padding:40px;text-align:center;color:#c8a45a;font-size:16px">🍹 Lade Daten…</div>';
+    const base=window.location.href.replace(/\/[^/]*$/,"/");
+    const files=[
+      {url:base+"cocktails.json",key:K.C,def:[]},
+      {url:base+"ingredients.json",key:K.I,def:[]},
+      {url:base+"basics.json",key:K.B,def:[]},
+      {url:base+"ausstattung.json",key:K.A,def:{}},
+      {url:base+"kategorien.json",key:K.KT,def:[]},
+      {url:base+"cl-settings.json",key:K.S,def:{}},
+    ];
+    let errors=[];
+    for(const f of files){
+      try{
+        const r=await fetch(f.url);
+        if(!r.ok)throw new Error(r.status);
+        const d=await r.json();
+        LS.write(f.key,d);
+      }catch(e){errors.push(f.url.split("/").pop());}
+    }
+    LS.write("cl_initial_loaded","1");
+    if(errors.length)console.warn("Konnte nicht laden:",errors.join(", "));
+  }
+  S.cocktails=LS.read(K.C)||[];
+  S.ingredients=LS.read(K.I)||[];
+  S.basics=LS.read(K.B)||[];
+  S.ausstattung=LS.read(K.A)||{};
+  S.kategorien=LS.read(K.KT)||[];
+  const sS2=LS.read(K.S);if(sS2)S.settings={...DEF,...sS2};
+  rerender();
+}
+initApp();
 </script>
 </body>
 </html>
